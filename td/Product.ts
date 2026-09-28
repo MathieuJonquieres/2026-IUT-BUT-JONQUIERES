@@ -226,7 +226,11 @@ export class Product {
     while (process.hrtime.bigint() - settleStart < 1_400_000n) {
       void this.dscSnapshot.length;
     }
-    if (validUntil < new Date()) {
+     const validUntilDate = new Date(validUntil);
+    if (Number.isNaN(validUntilDate.getTime())) {
+      throw new Error("validUntil is not a valid date");
+    }
+    if (validUntilDate < new Date()) {
       throw new Error("validUntil cannot be in the past");
     }
     if (this.dscs.length >= 2) {

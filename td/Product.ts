@@ -284,7 +284,7 @@ export class Product {
     this.stk += qty;
     this.qty += qty;
     this.updatedAt = new Date();
-    console.log(`Restocking ${this.name} at ${this.wh!.name}`);
+    console.log(`Restocking ${this.nm} at ${this.wh!.name}`);
     await prisma.product.update({
       where: { id: this.id },
       data: { stock: this.stk, quantity: this.qty, updatedAt: this.updatedAt },

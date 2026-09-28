@@ -44,46 +44,46 @@ export class Warehouse {
 }
 
 export class Price {
-  amt: number;
-  ccy: string;
-  mgn: number; // percentage
+  amount: number;
+  currency: string;
+  margin: number; // percentage
   vat: number; // percentage, applied on margin only
 
-  constructor(amt: number, ccy: string) {
-    this.amt = amt;
-    this.ccy = ccy;
-    this.mgn = 15;
+  constructor(amount: number, currency: string) {
+    this.amount = amount;
+    this.currency = currency;
+    this.margin = 15;
     this.vat = 20;
   }
 
   getResellerPrice(): number {
-    const mgnAmt = (this.amt * this.mgn) / 100;
-    const vatAmt = (mgnAmt * this.vat) / 100;
-    return this.amt + mgnAmt + vatAmt;
+    const marginAmt = (this.amount * this.margin) / 100;
+    const vatAmt = (marginAmt * this.vat) / 100;
+    return this.amount + marginAmt + vatAmt;
   }
 
   getAmt(): number {
-    return this.amt;
+    return this.amount;
   }
 
-  setAmt(amt: number): void {
-    this.amt = amt;
+  setAmt(amount: number): void {
+    this.amount = amount;
   }
 
   getCcy(): string {
-    return this.ccy;
+    return this.currency;
   }
 
-  setCcy(ccy: string): void {
-    this.ccy = ccy;
+  setCcy(currency: string): void {
+    this.currency = currency;
   }
 
   getMgn(): number {
-    return this.mgn;
+    return this.margin;
   }
 
-  setMgn(mgn: number): void {
-    this.mgn = mgn;
+  setMgn(margin: number): void {
+    this.margin = margin;
   }
 }
 
@@ -264,17 +264,17 @@ export class Product {
   // --- Pricing ---
 
   getResellerPrice(): number {
-    const mgnAmt = (this.price.amt * this.price.mgn) / 100;
-    const vatAmt = (mgnAmt * this.price.vat) / 100;
-    return this.price.amt + mgnAmt + vatAmt;
+    const marginAmt = (this.price.amount * this.price.margin) / 100;
+    const vatAmt = (marginAmt * this.price.vat) / 100;
+    return this.price.amount + marginAmt + vatAmt;
   }
 
-  async setMargin(mgnPct: number): Promise<void> {
-    this.price.mgn = mgnPct;
+  async setMargin(marginPct: number): Promise<void> {
+    this.price.margin = marginPct;
     this.updatedAt = new Date();
     await prisma.product.update({
       where: { id: this.id },
-      data: { priceMargin: mgnPct, updatedAt: this.updatedAt },
+      data: { priceMargin: marginPct, updatedAt: this.updatedAt },
     });
   }
 

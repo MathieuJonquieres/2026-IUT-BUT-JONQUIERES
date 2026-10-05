@@ -62,27 +62,27 @@ export class Price {
     return this.amount + marginAmt + vatAmt;
   }
 
-  getAmt(): number {
+  getAmount(): number {
     return this.amount;
   }
 
-  setAmt(amount: number): void {
+  setAmount(amount: number): void {
     this.amount = amount;
   }
 
-  getCcy(): string {
+  getCurrency(): string {
     return this.currency;
   }
 
-  setCcy(currency: string): void {
+  setCurrency(currency: string): void {
     this.currency = currency;
   }
 
-  getMgn(): number {
+  getMargin(): number {
     return this.margin;
   }
 
-  setMgn(margin: number): void {
+  setMargin(margin: number): void {
     this.margin = margin;
   }
 }

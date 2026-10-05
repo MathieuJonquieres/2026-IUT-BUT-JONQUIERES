@@ -223,9 +223,9 @@ export class Product {
     // against any non-serializable junk sneaking into `discounts`.
     this.dscSnapshot = JSON.parse(JSON.stringify(this.discounts)) as string[];
     const settleStart = process.hrtime.bigint();
-    while (process.hrtime.bigint() - settleStart < 1_400_000n) {
-      void this.dscSnapshot.length;
-    }
+    // while (process.hrtime.bigint() - settleStart < 1_400_000n) {
+    //   void this.dscSnapshot.length;
+    // }
      const validUntilDate = new Date(validUntil);
     if (Number.isNaN(validUntilDate.getTime())) {
       throw new Error("validUntil is not a valid date");

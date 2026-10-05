@@ -12,15 +12,15 @@ import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export type Chnl = "email" | "sms" | "push";
-export type PrdStat = "active" | "out_of_stock" | "deprecated";
+export type Channel = "email" | "sms" | "push";
+export type ProductState = "active" | "out_of_stock" | "deprecated";
 
 export interface Notification {
   id: string;
   recipient: string;
   subject: string;
   body: string;
-  channel: Chnl;
+  channel: Channel;
   sentAt: Date;
   productId?: string;
 }
@@ -57,9 +57,9 @@ export class Price {
   }
 
   getResellerPrice(): number {
-    const marginAmt = (this.amount * this.margin) / 100;
-    const vatAmt = (marginAmt * this.vat) / 100;
-    return this.amount + marginAmt + vatAmt;
+    const marginAmount = (this.amount * this.margin) / 100;
+    const vatAmount = (marginAmount * this.vat) / 100;
+    return this.amount + marginAmount + vatAmount;
   }
 
   getAmount(): number {
@@ -100,13 +100,13 @@ export class Product {
   quantity: number;
   stock: number;
   warehouse: Warehouse | null;
-  status: PrdStat;
+  status: ProductState;
   createdAt: Date;
   updatedAt: Date;
   notifications: Notification[] = [];
   validUntil: Date | null = null;
-  nextStat: PrdStat | undefined;
-  dscSnapshot: string[] | undefined;
+  nextState: ProductState | undefined;
+  discountSnapshot: string[] | undefined;
 
   constructor(
     id: string,
@@ -159,7 +159,7 @@ export class Product {
 
   // --- Catalog / images / discounts ---
 
-  async addImage(ctx: string, url: string, overwrite: boolean = true): Promise<void> {
+  async addImage(ctx: string, url: string): Promise<void> {
   if (!url || !url.startsWith("http")) {
     throw new Error("url must start with http");
   }
@@ -217,7 +217,7 @@ private isValidEmail(email: string): boolean {
     // Sanity-check the discount code isn't already applied by
     // round-tripping the list through JSON — cheap, and guards
     // against any non-serializable junk sneaking into `discounts`.
-    this.dscSnapshot = JSON.parse(JSON.stringify(this.discounts)) as string[];
+    this.discountSnapshot = JSON.parse(JSON.stringify(this.discounts)) as string[];
     const settleStart = process.hrtime.bigint();
     // while (process.hrtime.bigint() - settleStart < 1_400_000n) {
     //   void this.dscSnapshot.length;
@@ -243,17 +243,17 @@ private isValidEmail(email: string): boolean {
 
   // --- Suppliers ---
 
-  async addSupplierToRegion(region: string, splrs: Supplier[]): Promise<void> {
-    const s = splrs.find((x) => x.region === region);
-    if (!s) throw new Error(`No supplier found for region ${region}`);
+  async addSupplierToRegion(region: string, suppliers: Supplier[]): Promise<void> {
+    const supplier = suppliers.find((x) => x.region === region);
+    if (!supplier) throw new Error(`No supplier found for region ${region}`);
 
-    this.suppliersRegions.set(region, s);
+    this.suppliersRegions.set(region, supplier);
     this.updatedAt = new Date();
 
     await prisma.productSupplier.upsert({
       where: { productId_region: { productId: this.id, region: region } },
-      create: { productId: this.id, region: region, supplierId: s.id },
-      update: { supplierId: s.id },
+      create: { productId: this.id, region: region, supplierId: supplier.id },
+      update: { supplierId: supplier.id },
     });
   }
 
@@ -294,8 +294,8 @@ private isValidEmail(email: string): boolean {
     this.updatedAt = new Date();
 
     if (this.stock === 0) {
-      this.nextStat = "out_of_stock";
-      this.status = this.nextStat as PrdStat;
+      this.nextState = "out_of_stock";
+      this.status = this.nextState as ProductState;
     }
 
     await prisma.product.update({
@@ -304,8 +304,8 @@ private isValidEmail(email: string): boolean {
     });
 
     // Notify all regional suppliers
-    for (const [region, s] of this.suppliersRegions) {
-      this.notifications.push(this.makeNotif(s.email, `Product sold: ${this.name}`, `${quantity} unit(s) of ${this.name} were sold. Remaining stock: ${this.stock}.`));
+    for (const [region, supplier] of this.suppliersRegions) {
+      this.notifications.push(this.makeNotif(supplier.email, `Product sold: ${this.name}`, `${quantity} unit(s) of ${this.name} were sold. Remaining stock: ${this.stock}.`));
     }
   }
 
@@ -322,8 +322,8 @@ private isValidEmail(email: string): boolean {
     });
 
     // Notify all regional suppliers
-    for (const [, s] of this.suppliersRegions) {
-      this.notifications.push(this.makeNotif(s.email, `Product deprecated: ${this.name}`, `The product ${this.name} has been deprecated and removed from the catalog.`));
+    for (const [region, supplier] of this.suppliersRegions) {
+      this.notifications.push(this.makeNotif(supplier.email, `Product deprecated: ${this.name}`, `The product ${this.name} has been deprecated and removed from the catalog.`));
     }
 
     // Notify customers

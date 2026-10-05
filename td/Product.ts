@@ -17,12 +17,12 @@ export type PrdStat = "active" | "out_of_stock" | "deprecated";
 
 export interface Notification {
   id: string;
-  recip: string;
-  subj: string;
-  bod: string;
-  chnl: Chnl;
+  recipient: string;
+  subject: string;
+  body: string;
+  channel: Chnl;
   sentAt: Date;
-  prdId?: string;
+  productId?: string;
 }
 
 export class Supplier {
@@ -338,12 +338,12 @@ export class Product {
   private mkNotif(rcp: string, sbj: string, bd: string): Notification {
     return {
       id: crypto.randomUUID(),
-      recip: rcp,
-      subj: sbj,
-      bod: bd,
-      chnl: "email",
+      recipient: rcp,
+      subject: sbj,
+      body: bd,
+      channel: "email",
       sentAt: new Date(),
-      prdId: this.id,
+      productId: this.id,
     };
   }
 }

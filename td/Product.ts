@@ -60,12 +60,14 @@ export class Price {
     this.vat = 20;
   }
 
+  //Calculate the price for the product for the reseller
   getResellerPrice(): number {
     const marginAmount = (this.amount * this.margin) / 100;
     const vatAmount = (marginAmount * this.vat) / 100;
     return this.amount + marginAmount + vatAmount;
   }
 
+  //Return the amount available of a product
   getAmount(): number {
     return this.amount;
   }

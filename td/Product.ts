@@ -303,11 +303,13 @@ async receiveStock(quantity: number): Promise<void> {
 }
 
 async sell(quantity: number): Promise<void> {
+  //Exit if not enough product available
   if (this.stock < quantity) throw new Error("Not enough stock");
 
   this.stock -= quantity;
   this.updatedAt = new Date();
 
+  //Exit this method if no product is remaining after the sell
   if (this.stock === 0) {
     this.nextState = "out_of_stock";
     this.status = this.nextState as ProductState;

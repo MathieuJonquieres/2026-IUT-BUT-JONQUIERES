@@ -154,10 +154,12 @@ export class Product {
   //Return the display Label
   getDisplayLabel(): string {
     let label: string;
+    //Display for deprecated product
     if (this.status === "deprecated") {
       label = `[DISCONTINUED] ${this.name}`;
       return label;
     }
+    //Display for no product left
     if (this.stock === 0) {
       label = `[OUT OF STOCK] ${this.name}`;
       return label;
@@ -259,6 +261,7 @@ async addDiscount(discountCode: string, validUntil: Date): Promise<void> {
 // --- Suppliers ---
 
 async addSupplierToRegion(region: string, suppliers: Supplier[]): Promise<void> {
+  //Get a supplier region for the suppliers list
   const supplier = suppliers.find((supplier) => supplier.region === region);
   if (!supplier) throw new Error(`No supplier found for region ${region}`);
 
@@ -291,6 +294,7 @@ async setMargin(marginPct: number): Promise<void> {
 
 // --- Stock ---
 
+//Add a received value to the product's stock
 async receiveStock(quantity: number): Promise<void> {
   this.stock += quantity;
   this.quantity += quantity;
@@ -302,12 +306,15 @@ async receiveStock(quantity: number): Promise<void> {
   });
 }
 
+//Sell a quantity of the product
 async sell(quantity: number): Promise<void> {
+  //Exit if not enough product available
   if (this.stock < quantity) throw new Error("Not enough stock");
 
   this.stock -= quantity;
   this.updatedAt = new Date();
 
+  //Exit this method if no product is remaining after the sell
   if (this.stock === 0) {
     this.nextState = "out_of_stock";
     this.status = this.nextState as ProductState;
@@ -325,7 +332,7 @@ async sell(quantity: number): Promise<void> {
 }
 
   // --- Lifecycle ---
-
+//Mention the product a deprecated
   async deprecate(): Promise<void> {
     this.status = "deprecated";
     this.stock = 0;

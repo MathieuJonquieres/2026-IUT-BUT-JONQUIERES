@@ -278,17 +278,17 @@ async addSupplierToRegion(region: string, suppliers: Supplier[]): Promise<void> 
 // --- Pricing ---
 
 getResellerPrice(): number {
-  const marginAmt = (this.price.amount * this.price.margin) / 100;
-  const vatAmount = (marginAmt * this.price.vat) / 100;
-  return this.price.amount + marginAmt + vatAmount;
+  const marginAmount = (this.price.amount * this.price.margin) / 100;
+  const vatAmount = (marginAmount * this.price.vat) / 100;
+  return this.price.amount + marginAmount + vatAmount;
 }
 
-async setMargin(marginPct: number): Promise<void> {
-  this.price.margin = marginPct;
+async setMargin(maringPercentage: number): Promise<void> {
+  this.price.margin = maringPercentage;
   this.updatedAt = new Date();
   await prisma.product.update({
     where: { id: this.id },
-    data: { priceMargin: marginPct, updatedAt: this.updatedAt },
+    data: { priceMargin: maringPercentage, updatedAt: this.updatedAt },
   });
 }
 

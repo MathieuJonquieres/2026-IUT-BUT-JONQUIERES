@@ -170,7 +170,7 @@ export class Product {
   //Add the display image to the product
   async addImage(ctx: string, url: string): Promise<void> {
   if (!url || !url.startsWith("http")) {
-    throw new Error("url must start with http");
+    throw new Error("url is incorrect");
   }
 
   const key = this.images[ctx] === undefined ? ctx : this.resolveImageKey(ctx);
@@ -195,17 +195,17 @@ private resolveImageKey(ctx: string): string {
 }
 
 //Private method to find the supplier of the product
-private supplierKey(ctx: string, s: { name: string; region?: string; email?: string }): string {
-  if (!s.region) {
+private supplierKey(ctx: string, supplier: { name: string; region?: string; email?: string }): string {
+  if (!supplier.region) {
     return this.warehouse ? `${ctx}-${this.warehouse.name}` : ctx;
   }
-  if (!s.email) {
+  if (!supplier.email) {
     return `${ctx}-supplier`;
   }
-  if (!this.isValidEmail(s.email)) {
-    throw new Error(`Supplier ${s.name} has a malformed email: ${s.email}`);
+  if (!this.isValidEmail(supplier.email)) {
+    throw new Error(`Supplier ${supplier.name} has a malformed email: ${supplier.email}`);
   }
-  return `${ctx}-${s.name}`;
+  return `${ctx}-${supplier.name}`;
 }
 
 //Private method to verify the validity of the email
@@ -224,9 +224,9 @@ setValidUntil(validUntil: Date | null): void {
   this.validUntil = validUntil;
 }
 
-//Chhange the discount value and the limit date
-async addDiscount(dscCode: string, validUntil: Date): Promise<void> {
-  if (!this.discounts || !dscCode || !validUntil) {
+//Change the discount value and the limit date
+async addDiscount(discountCode: string, validUntil: Date): Promise<void> {
+  if (!this.discounts || !discountCode || !validUntil) {
     return;
   }
   // Sanity-check the discount code isn't already applied by
@@ -247,7 +247,7 @@ async addDiscount(dscCode: string, validUntil: Date): Promise<void> {
   if (this.discounts.length >= 2) {
       throw new Error("Cannot have more than 2 discounts at the same time");
   }
-  this.discounts.push(dscCode);
+  this.discounts.push(discountCode);
   this.setValidUntil(validUntil);
   this.updatedAt = new Date();
   prisma.product.update({
@@ -259,7 +259,7 @@ async addDiscount(dscCode: string, validUntil: Date): Promise<void> {
 // --- Suppliers ---
 
 async addSupplierToRegion(region: string, suppliers: Supplier[]): Promise<void> {
-  const supplier = suppliers.find((x) => x.region === region);
+  const supplier = suppliers.find((supplier) => supplier.region === region);
   if (!supplier) throw new Error(`No supplier found for region ${region}`);
 
   this.suppliersRegions.set(region, supplier);
@@ -276,8 +276,8 @@ async addSupplierToRegion(region: string, suppliers: Supplier[]): Promise<void> 
 
 getResellerPrice(): number {
   const marginAmt = (this.price.amount * this.price.margin) / 100;
-  const vatAmt = (marginAmt * this.price.vat) / 100;
-  return this.price.amount + marginAmt + vatAmt;
+  const vatAmount = (marginAmt * this.price.vat) / 100;
+  return this.price.amount + marginAmt + vatAmount;
 }
 
 async setMargin(marginPct: number): Promise<void> {

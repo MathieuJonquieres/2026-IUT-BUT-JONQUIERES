@@ -15,6 +15,7 @@ const prisma = new PrismaClient();
 export type Channel = "email" | "sms" | "push";
 export type ProductState = "active" | "out_of_stock" | "deprecated";
 
+//A Class that create a notification
 export interface Notification {
   id: string;
   recipient: string;
@@ -25,6 +26,7 @@ export interface Notification {
   productId?: string;
 }
 
+//Class containing the Supplier and their data
 export class Supplier {
   constructor(
     public id: string,
@@ -34,6 +36,7 @@ export class Supplier {
   ) {}
 }
 
+//Class containing the location of the Warehouse
 export class Warehouse {
   constructor(
     public id: string,
@@ -43,6 +46,7 @@ export class Warehouse {
   ) {}
 }
 
+//A Class stock a Price and the taxes linked to it
 export class Price {
   amount: number;
   currency: string;

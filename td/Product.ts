@@ -67,27 +67,32 @@ export class Price {
     return this.amount + marginAmount + vatAmount;
   }
 
-  //Return the amount available of a product
+  //Return the amount available of the product
   getAmount(): number {
     return this.amount;
   }
 
+  //Change amount available of the product
   setAmount(amount: number): void {
     this.amount = amount;
   }
 
+  //Get the currency of the price
   getCurrency(): string {
     return this.currency;
   }
 
+  //Set the currency of the price
   setCurrency(currency: string): void {
     this.currency = currency;
   }
 
+  //Get the margin for the price
   getMargin(): number {
     return this.margin;
   }
 
+  //Set the margin for the price
   setMargin(margin: number): void {
     this.margin = margin;
   }

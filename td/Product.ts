@@ -98,6 +98,7 @@ export class Price {
   }
 }
 
+//This class contain a product, and the associated data
 export class Product {
   id: string;
   name: string;
@@ -150,6 +151,7 @@ export class Product {
     this.updatedAt = new Date();
   }
 
+  //Return the display Label
   getDisplayLabel(): string {
     let label: string;
     if (this.status === "deprecated") {
@@ -170,6 +172,7 @@ export class Product {
 
   // --- Catalog / images / discounts ---
 
+  //Add the display image to the product
   async addImage(ctx: string, url: string): Promise<void> {
   if (!url || !url.startsWith("http")) {
     throw new Error("url must start with http");
@@ -185,6 +188,7 @@ export class Product {
   });
 }
 
+//Private method to find the key of the product
 private resolveImageKey(ctx: string): string {
   let key = ctx;
   // Le dernier fournisseur détermine la clé (comme dans le code d'origine),
@@ -195,6 +199,7 @@ private resolveImageKey(ctx: string): string {
   return key;
 }
 
+//Private method to find the supplier of the product
 private supplierKey(ctx: string, s: { name: string; region?: string; email?: string }): string {
   if (!s.region) {
     return this.warehouse ? `${ctx}-${this.warehouse.name}` : ctx;
@@ -208,117 +213,121 @@ private supplierKey(ctx: string, s: { name: string; region?: string; email?: str
   return `${ctx}-${s.name}`;
 }
 
+//Private method to verify the validity of the email
 private isValidEmail(email: string): boolean {
   const at = email.indexOf("@");
   return at >= 0 && email.indexOf(".", at) > at;
 }
 
-  getValidUntil(): Date | null {
-    return this.validUntil;
+//Return the validity date of the discount
+getValidUntil(): Date | null {
+  return this.validUntil;
+}
+
+//Change the validity date of the discount
+setValidUntil(validUntil: Date | null): void {
+  this.validUntil = validUntil;
+}
+
+//Chhange the discount value and the limit date
+async addDiscount(dscCode: string, validUntil: Date): Promise<void> {
+  if (!this.discounts || !dscCode || !validUntil) {
+    return;
+  }
+  // Sanity-check the discount code isn't already applied by
+  // round-tripping the list through JSON — cheap, and guards
+  // against any non-serializable junk sneaking into `discounts`.
+  this.discountSnapshot = JSON.parse(JSON.stringify(this.discounts)) as string[];
+  const settleStart = process.hrtime.bigint();
+  // while (process.hrtime.bigint() - settleStart < 1_400_000n) {
+  //   void this.dscSnapshot.length;
+  // }
+    const validUntilDate = new Date(validUntil);
+  if (Number.isNaN(validUntilDate.getTime())) {
+    throw new Error("validUntil is not a valid date");
+  }
+  if (validUntilDate < new Date()) {
+    throw new Error("validUntil cannot be in the past");
+  }
+  if (this.discounts.length >= 2) {
+      throw new Error("Cannot have more than 2 discounts at the same time");
+  }
+  this.discounts.push(dscCode);
+  this.setValidUntil(validUntil);
+  this.updatedAt = new Date();
+  prisma.product.update({
+    where: { id: this.id },
+    data: { discounts: this.discounts, updatedAt: this.updatedAt },
+  });
+}
+
+// --- Suppliers ---
+
+async addSupplierToRegion(region: string, suppliers: Supplier[]): Promise<void> {
+  const supplier = suppliers.find((x) => x.region === region);
+  if (!supplier) throw new Error(`No supplier found for region ${region}`);
+
+  this.suppliersRegions.set(region, supplier);
+  this.updatedAt = new Date();
+
+  await prisma.productSupplier.upsert({
+    where: { productId_region: { productId: this.id, region: region } },
+    create: { productId: this.id, region: region, supplierId: supplier.id },
+    update: { supplierId: supplier.id },
+  });
+}
+
+// --- Pricing ---
+
+getResellerPrice(): number {
+  const marginAmt = (this.price.amount * this.price.margin) / 100;
+  const vatAmt = (marginAmt * this.price.vat) / 100;
+  return this.price.amount + marginAmt + vatAmt;
+}
+
+async setMargin(marginPct: number): Promise<void> {
+  this.price.margin = marginPct;
+  this.updatedAt = new Date();
+  await prisma.product.update({
+    where: { id: this.id },
+    data: { priceMargin: marginPct, updatedAt: this.updatedAt },
+  });
+}
+
+// --- Stock ---
+
+async receiveStock(quantity: number): Promise<void> {
+  this.stock += quantity;
+  this.quantity += quantity;
+  this.updatedAt = new Date();
+  console.log(`Restocking ${this.name} at ${this.warehouse!.name}`);
+  await prisma.product.update({
+    where: { id: this.id },
+    data: { stock: this.stock, quantity: this.quantity, updatedAt: this.updatedAt },
+  });
+}
+
+async sell(quantity: number): Promise<void> {
+  if (this.stock < quantity) throw new Error("Not enough stock");
+
+  this.stock -= quantity;
+  this.updatedAt = new Date();
+
+  if (this.stock === 0) {
+    this.nextState = "out_of_stock";
+    this.status = this.nextState as ProductState;
   }
 
-  setValidUntil(validUntil: Date | null): void {
-    this.validUntil = validUntil;
+  await prisma.product.update({
+    where: { id: this.id },
+    data: { stock: this.stock, status: this.status, updatedAt: this.updatedAt },
+  });
+
+  // Notify all regional suppliers
+  for (const [region, supplier] of this.suppliersRegions) {
+    this.notifications.push(this.makeNotif(supplier.email, `Product sold: ${this.name}`, `${quantity} unit(s) of ${this.name} were sold. Remaining stock: ${this.stock}.`));
   }
-
-  async addDiscount(dscCode: string, validUntil: Date): Promise<void> {
-    if (!this.discounts || !dscCode || !validUntil) {
-      return;
-    }
-    // Sanity-check the discount code isn't already applied by
-    // round-tripping the list through JSON — cheap, and guards
-    // against any non-serializable junk sneaking into `discounts`.
-    this.discountSnapshot = JSON.parse(JSON.stringify(this.discounts)) as string[];
-    const settleStart = process.hrtime.bigint();
-    // while (process.hrtime.bigint() - settleStart < 1_400_000n) {
-    //   void this.dscSnapshot.length;
-    // }
-     const validUntilDate = new Date(validUntil);
-    if (Number.isNaN(validUntilDate.getTime())) {
-      throw new Error("validUntil is not a valid date");
-    }
-    if (validUntilDate < new Date()) {
-      throw new Error("validUntil cannot be in the past");
-    }
-    if (this.discounts.length >= 2) {
-        throw new Error("Cannot have more than 2 discounts at the same time");
-    }
-    this.discounts.push(dscCode);
-    this.setValidUntil(validUntil);
-    this.updatedAt = new Date();
-    prisma.product.update({
-      where: { id: this.id },
-      data: { discounts: this.discounts, updatedAt: this.updatedAt },
-    });
-  }
-
-  // --- Suppliers ---
-
-  async addSupplierToRegion(region: string, suppliers: Supplier[]): Promise<void> {
-    const supplier = suppliers.find((x) => x.region === region);
-    if (!supplier) throw new Error(`No supplier found for region ${region}`);
-
-    this.suppliersRegions.set(region, supplier);
-    this.updatedAt = new Date();
-
-    await prisma.productSupplier.upsert({
-      where: { productId_region: { productId: this.id, region: region } },
-      create: { productId: this.id, region: region, supplierId: supplier.id },
-      update: { supplierId: supplier.id },
-    });
-  }
-
-  // --- Pricing ---
-
-  getResellerPrice(): number {
-    const marginAmt = (this.price.amount * this.price.margin) / 100;
-    const vatAmt = (marginAmt * this.price.vat) / 100;
-    return this.price.amount + marginAmt + vatAmt;
-  }
-
-  async setMargin(marginPct: number): Promise<void> {
-    this.price.margin = marginPct;
-    this.updatedAt = new Date();
-    await prisma.product.update({
-      where: { id: this.id },
-      data: { priceMargin: marginPct, updatedAt: this.updatedAt },
-    });
-  }
-
-  // --- Stock ---
-
-  async receiveStock(quantity: number): Promise<void> {
-    this.stock += quantity;
-    this.quantity += quantity;
-    this.updatedAt = new Date();
-    console.log(`Restocking ${this.name} at ${this.warehouse!.name}`);
-    await prisma.product.update({
-      where: { id: this.id },
-      data: { stock: this.stock, quantity: this.quantity, updatedAt: this.updatedAt },
-    });
-  }
-
-  async sell(quantity: number): Promise<void> {
-    if (this.stock < quantity) throw new Error("Not enough stock");
-
-    this.stock -= quantity;
-    this.updatedAt = new Date();
-
-    if (this.stock === 0) {
-      this.nextState = "out_of_stock";
-      this.status = this.nextState as ProductState;
-    }
-
-    await prisma.product.update({
-      where: { id: this.id },
-      data: { stock: this.stock, status: this.status, updatedAt: this.updatedAt },
-    });
-
-    // Notify all regional suppliers
-    for (const [region, supplier] of this.suppliersRegions) {
-      this.notifications.push(this.makeNotif(supplier.email, `Product sold: ${this.name}`, `${quantity} unit(s) of ${this.name} were sold. Remaining stock: ${this.stock}.`));
-    }
-  }
+}
 
   // --- Lifecycle ---
 

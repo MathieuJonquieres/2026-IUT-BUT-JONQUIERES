@@ -62,27 +62,27 @@ export class Price {
     return this.amount + marginAmt + vatAmt;
   }
 
-  getAmt(): number {
+  getAmount(): number {
     return this.amount;
   }
 
-  setAmt(amount: number): void {
+  setAmount(amount: number): void {
     this.amount = amount;
   }
 
-  getCcy(): string {
+  getCurrency(): string {
     return this.currency;
   }
 
-  setCcy(currency: string): void {
+  setCurrency(currency: string): void {
     this.currency = currency;
   }
 
-  getMgn(): number {
+  getMargin(): number {
     return this.margin;
   }
 
-  setMgn(margin: number): void {
+  setMargin(margin: number): void {
     this.margin = margin;
   }
 }
@@ -160,51 +160,47 @@ export class Product {
   // --- Catalog / images / discounts ---
 
   async addImage(ctx: string, url: string, overwrite: boolean = true): Promise<void> {
-    if (url) {
-      if (url.substring(0, 4) === "http") {
-        if (!(this.images[ctx] === undefined)) {
-          let k = ctx;
-          for (const [, s] of this.suppliersRegions) {
-            if (s.region) {
-              if (s.email) {
-                if (s.email.indexOf("@") > 0 && s.email.indexOf(".", s.email.indexOf("@")) > s.email.indexOf("@")) {
-                  k = ctx + "-" + s.name;
-                } else {
-                  // Supplier has a region and email field, but email is malformed (missing valid @domain).
-                  // Treat as a data integrity error: throw instead of gracefully degrading.
-                  throw new Error(`Supplier ${s.name} has a malformed email: ${s.email}`);
-                }
-              } else {
-                // Supplier has a region but NO email field (empty string, falsy).
-                // Fall back to generic "-supplier" marker, losing the supplier's identity.
-                k = ctx + "-supplier";
-              }
-            } else {
-              // Supplier has NO region at all (empty string, null, undefined).
-              // Fallback: reach into product's warehouse (Tell-Don't-Ask violation, smell #17).
-              // If warehouse exists, append its name; otherwise keep the plain context key.
-              k = this.warehouse ? ctx + "-" + this.warehouse.name : ctx;
-            }
-          }
-          this.images[k] = url;
-        } else {
-          this.images[ctx] = url;
-        }
-        this.updatedAt = new Date();
-        await prisma.product.update({
-          where: { id: this.id },
-          data: { images: this.images as Prisma.InputJsonValue, updatedAt: this.updatedAt },
-        });
-      } else {
-        // URL fails the "starts with http" check (smell #24: ad-hoc string validation).
-        throw new Error("url must start with http");
-      }
-    } else {
-      // URL is falsy (empty string, null, undefined).
-      // Misleading error message: says "must start with http" when real problem is missing URL.
-      throw new Error("url must start with http");
-    }
+  if (!url || !url.startsWith("http")) {
+    throw new Error("url must start with http");
   }
+
+  const key = this.images[ctx] === undefined ? ctx : this.resolveImageKey(ctx);
+  this.images[key] = url;
+  this.updatedAt = new Date();
+
+  await prisma.product.update({
+    where: { id: this.id },
+    data: { images: this.images as Prisma.InputJsonValue, updatedAt: this.updatedAt },
+  });
+}
+
+private resolveImageKey(ctx: string): string {
+  let key = ctx;
+  // Le dernier fournisseur détermine la clé (comme dans le code d'origine),
+  // mais tous sont validés car supplierKey peut lever une erreur.
+  for (const [, supplier] of this.suppliersRegions) {
+    key = this.supplierKey(ctx, supplier);
+  }
+  return key;
+}
+
+private supplierKey(ctx: string, s: { name: string; region?: string; email?: string }): string {
+  if (!s.region) {
+    return this.warehouse ? `${ctx}-${this.warehouse.name}` : ctx;
+  }
+  if (!s.email) {
+    return `${ctx}-supplier`;
+  }
+  if (!this.isValidEmail(s.email)) {
+    throw new Error(`Supplier ${s.name} has a malformed email: ${s.email}`);
+  }
+  return `${ctx}-${s.name}`;
+}
+
+private isValidEmail(email: string): boolean {
+  const at = email.indexOf("@");
+  return at >= 0 && email.indexOf(".", at) > at;
+}
 
   getValidUntil(): Date | null {
     return this.validUntil;

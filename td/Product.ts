@@ -170,7 +170,7 @@ export class Product {
   //Add the display image to the product
   async addImage(ctx: string, url: string): Promise<void> {
   if (!url || !url.startsWith("http")) {
-    throw new Error("url must start with http");
+    throw new Error("url is incorrect");
   }
 
   const key = this.images[ctx] === undefined ? ctx : this.resolveImageKey(ctx);
